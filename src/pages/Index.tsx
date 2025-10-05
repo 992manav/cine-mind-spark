@@ -1,19 +1,92 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MovieCard } from "@/components/MovieCard";
 import { RecommendationSection } from "@/components/RecommendationSection";
 import { Navigation } from "@/components/Navigation";
-import { Sparkles, TrendingUp, Star, Search } from "lucide-react";
+import { MovieQuiz } from "@/components/MovieQuiz";
+import { AnalyticsCharts } from "@/components/AnalyticsCharts";
+import { Sparkles, TrendingUp, Star, Search, LogIn } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<"collaborative" | "content" | "hybrid">("collaborative");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [movies, setMovies] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [userRatings, setUserRatings] = useState<Record<string, number>>({});
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    checkUser();
+    loadMovies();
+  }, []);
+
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+
+    if (user) {
+      loadUserRatings(user.id);
+    }
+
+    supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        loadUserRatings(session.user.id);
+      }
+    });
+  };
+
+  const loadMovies = async () => {
+    const { data, error } = await supabase.from("movies").select("*");
+    if (data) setMovies(data);
+  };
+
+  const loadUserRatings = async (userId: string) => {
+    const { data } = await supabase
+      .from("movie_ratings")
+      .select("movie_id, rating")
+      .eq("user_id", userId);
+
+    if (data) {
+      const ratings: Record<string, number> = {};
+      data.forEach((r) => {
+        ratings[r.movie_id] = r.rating;
+      });
+      setUserRatings(ratings);
+    }
+  };
 
   const scrollToRecommendations = () => {
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please log in to get personalized recommendations.",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return;
+    }
     document.getElementById("recommendations")?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const handleQuizComplete = () => {
+    setShowQuiz(false);
+    toast({
+      title: "Success!",
+      description: "Your preferences have been saved. Check out your personalized recommendations!",
+    });
+    scrollToRecommendations();
+  };
+
+  const filteredMovies = movies.filter((movie) =>
+    movie.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -46,21 +119,34 @@ const Index = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button 
-              size="lg" 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg animate-glow"
-              onClick={scrollToRecommendations}
-            >
-              Get Recommendations
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="border-primary text-foreground hover:bg-primary/10 px-8 py-6 text-lg"
-              asChild
-            >
-              <Link to="/admin">Admin Panel</Link>
-            </Button>
+            {user ? (
+              <>
+                <Button 
+                  size="lg" 
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg"
+                  onClick={scrollToRecommendations}
+                >
+                  Get Recommendations
+                </Button>
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="border-primary text-foreground hover:bg-primary/10 px-8 py-6 text-lg"
+                  onClick={() => setShowQuiz(true)}
+                >
+                  Take AI Quiz
+                </Button>
+              </>
+            ) : (
+              <Button 
+                size="lg" 
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg"
+                onClick={() => navigate("/auth")}
+              >
+                <LogIn className="w-5 h-5 mr-2" />
+                Sign In to Get Started
+              </Button>
+            )}
           </div>
 
           {/* Scroll Indicator */}
@@ -71,6 +157,30 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Movie Quiz Modal */}
+      {showQuiz && user && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-background border border-border rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-background border-b border-border p-4 flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Movie Personality Quiz</h2>
+              <Button variant="ghost" onClick={() => setShowQuiz(false)}>
+                Close
+              </Button>
+            </div>
+            <MovieQuiz onComplete={handleQuizComplete} />
+          </div>
+        </div>
+      )}
+
+      {/* Analytics Section */}
+      {user && (
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+          <div className="max-w-7xl mx-auto">
+            <AnalyticsCharts />
+          </div>
+        </section>
+      )}
 
       {/* AI Recommendation Engine */}
       <section id="recommendations" className="py-20 px-4 sm:px-6 lg:px-8">
@@ -147,42 +257,18 @@ const Index = () => {
 
           {/* Movie Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-            {/* Sample movies - will be populated dynamically */}
-            <MovieCard
-              title="The Brutalist"
-              genre="Drama"
-              year={2024}
-              rating={9.4}
-              image="https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&h=600&fit=crop"
-            />
-            <MovieCard
-              title="Anora"
-              genre="Comedy"
-              year={2024}
-              rating={8.9}
-              image="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&h=600&fit=crop"
-            />
-            <MovieCard
-              title="Challengers"
-              genre="Romance"
-              year={2024}
-              rating={9.2}
-              image="https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=400&h=600&fit=crop"
-            />
-            <MovieCard
-              title="The Substance"
-              genre="Horror"
-              year={2024}
-              rating={8.7}
-              image="https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=400&h=600&fit=crop"
-            />
-            <MovieCard
-              title="Dune: Part Two"
-              genre="Sci-Fi"
-              year={2024}
-              rating={9.5}
-              image="https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=400&h=600&fit=crop"
-            />
+            {filteredMovies.map((movie) => (
+              <MovieCard
+                key={movie.id}
+                id={movie.id}
+                title={movie.title}
+                genre={movie.genre}
+                year={movie.year}
+                rating={movie.rating}
+                image={movie.image}
+                userRating={userRatings[movie.id]}
+              />
+            ))}
           </div>
         </div>
       </section>

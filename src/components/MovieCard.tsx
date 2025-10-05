@@ -1,16 +1,64 @@
+import { useState } from "react";
 import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface MovieCardProps {
+  id: string;
   title: string;
   genre: string;
   year: number;
   rating: number;
   image: string;
   matchScore?: number;
+  userRating?: number;
 }
 
-export const MovieCard = ({ title, genre, year, rating, image, matchScore }: MovieCardProps) => {
+export const MovieCard = ({ id, title, genre, year, rating, image, matchScore, userRating }: MovieCardProps) => {
+  const [selectedRating, setSelectedRating] = useState<number>(userRating || 0);
+  const [isRating, setIsRating] = useState(false);
+  const { toast } = useToast();
+
+  const handleRating = async (stars: number) => {
+    setIsRating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to rate movies.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from("movie_ratings")
+        .upsert({
+          user_id: user.id,
+          movie_id: id,
+          rating: stars,
+        });
+
+      if (error) throw error;
+
+      setSelectedRating(stars);
+      toast({
+        title: "Rating Saved!",
+        description: `You rated ${title} ${stars} stars.`,
+      });
+    } catch (error) {
+      console.error("Error rating movie:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save rating. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRating(false);
+    }
+  };
   const stars = Math.round(rating / 2);
 
   return (
@@ -66,9 +114,27 @@ export const MovieCard = ({ title, genre, year, rating, image, matchScore }: Mov
           </div>
         </div>
         <h3 className="font-semibold mb-3 truncate">{title}</h3>
-        <Button className="w-full bg-primary hover:bg-primary/90">
-          Rate Movie
-        </Button>
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Your Rating:</p>
+          <div className="flex gap-1 justify-center">
+            {[1, 2, 3, 4, 5].map((stars) => (
+              <button
+                key={stars}
+                onClick={() => handleRating(stars)}
+                disabled={isRating}
+                className="transition-all hover:scale-110"
+              >
+                <Star
+                  className={`w-5 h-5 ${
+                    stars <= selectedRating
+                      ? "text-accent fill-accent"
+                      : "text-muted-foreground"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
