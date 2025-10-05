@@ -14,7 +14,172 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      movie_ratings: {
+        Row: {
+          created_at: string | null
+          id: string
+          movie_id: string
+          rating: number
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          movie_id: string
+          rating: number
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          movie_id?: string
+          rating?: number
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movie_ratings_movie_id_fkey"
+            columns: ["movie_id"]
+            isOneToOne: false
+            referencedRelation: "movies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movies: {
+        Row: {
+          actors: string[] | null
+          created_at: string | null
+          description: string | null
+          director: string | null
+          genre: string
+          id: string
+          image: string | null
+          language: string | null
+          rating: number | null
+          title: string
+          year: number
+        }
+        Insert: {
+          actors?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          director?: string | null
+          genre: string
+          id?: string
+          image?: string | null
+          language?: string | null
+          rating?: number | null
+          title: string
+          year: number
+        }
+        Update: {
+          actors?: string[] | null
+          created_at?: string | null
+          description?: string | null
+          director?: string | null
+          genre?: string
+          id?: string
+          image?: string | null
+          language?: string | null
+          rating?: number | null
+          title?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          favorite_actors: string[] | null
+          favorite_directors: string[] | null
+          favorite_genres: string[] | null
+          id: string
+          preferred_languages: string[] | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          favorite_actors?: string[] | null
+          favorite_directors?: string[] | null
+          favorite_genres?: string[] | null
+          id: string
+          preferred_languages?: string[] | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          favorite_actors?: string[] | null
+          favorite_directors?: string[] | null
+          favorite_genres?: string[] | null
+          id?: string
+          preferred_languages?: string[] | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
+      quiz_responses: {
+        Row: {
+          answer: string
+          created_at: string | null
+          id: string
+          question_id: string
+          user_id: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string | null
+          id?: string
+          question_id: string
+          user_id: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string | null
+          id?: string
+          question_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      watch_history: {
+        Row: {
+          id: string
+          movie_id: string
+          user_id: string
+          watched_at: string | null
+        }
+        Insert: {
+          id?: string
+          movie_id: string
+          user_id: string
+          watched_at?: string | null
+        }
+        Update: {
+          id?: string
+          movie_id?: string
+          user_id?: string
+          watched_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watch_history_movie_id_fkey"
+            columns: ["movie_id"]
+            isOneToOne: false
+            referencedRelation: "movies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
